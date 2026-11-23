@@ -127,8 +127,9 @@ container.addEventListener('mouseleave', () => {
     }
 });
 
-const flameContainer = document.getElementById('flame-container');
 
+
+const flameContainer = document.getElementById('flame-container');
 let lastParticle = 0;
 
 document.addEventListener('mousemove', (e) => {
@@ -136,7 +137,7 @@ document.addEventListener('mousemove', (e) => {
     const now = Date.now();
 
     // Control particle frequency
-    if (now - lastParticle < 20) return;
+    if (now - lastParticle < 0) return;
     lastParticle = now;
 
     const particle = document.createElement('div');
@@ -152,3 +153,105 @@ document.addEventListener('mousemove', (e) => {
     });
 });
 
+const canvas = document.getElementById('light-trail');
+const ctx = canvas.getContext('2d');
+
+let particles = [];
+let previousMouse = null;
+
+function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Create an ember
+function createEmber(x, y) {
+    const colors = [
+        '#ff3b1f', // red
+        '#ff6a00', // orange
+        '#6b95e3'
+    ];
+    
+    particles.push({
+        x: x,
+        y: y,
+
+        // Random drifting movement
+        vx: (Math.random() - 0.5) * 2,
+        vy: -Math.random() * 1 - 0.4,
+
+        size: Math.random() * 2 + 1,
+        life: 1,
+        decay: Math.random() * 0.015 + 0.008,
+
+        flicker: Math.random(),
+        color: colors[Math.floor(Math.random() * colors.length)]
+
+    });
+}
+
+// Spawn embers along mouse movement
+document.addEventListener('mousemove', (e) => {
+    if (previousMouse) {
+        const dx = e.clientX - previousMouse.x;
+        const dy = e.clientY - previousMouse.y;
+
+        const distance = Math.hypot(dx, dy);
+        const count = Math.ceil(distance / 8);
+
+        for (let i = 0; i < count; i++) {
+            const t = i / Math.max(count, 1);
+
+            createEmber(
+                previousMouse.x + dx * t,
+                previousMouse.y + dy * t
+            );
+        }
+    }
+
+    previousMouse = {
+        x: e.clientX,
+        y: e.clientY
+    };
+});
+
+// Animate embers
+function animate() {
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+    particles.forEach((p) => {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Slight upward acceleration
+        p.vy -= 0.015;
+
+        p.life -= p.decay;
+
+        // Flickering brightness
+        const flicker = 0.7 + Math.random() * 0.3;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+
+        ctx.fillStyle = `rgba(255, ${Math.floor(150 + 80 * flicker)}, 65, ${Math.max(0, p.life) * flicker})`;
+
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = p.color;
+
+        ctx.fill();
+    });
+
+    particles = particles.filter(p => p.life > 0);
+
+    requestAnimationFrame(animate);
+}
+
+animate();
